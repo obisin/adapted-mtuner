@@ -1,0 +1,28 @@
+__pycache__/
+.venv
+venv/
+logs/
+uv.lock
+main.exp
+main.lib
+main.obj
+CLAUDE.md
+GEMINI.md
+.claude/
+.gemini/
+AGENTS.md
+
+# User-specified ignores
+.ai/
+other/
+tomlDiffPipe/
+
+# Keep these directories in the repo but ignore their contents
+data/cache/**
+!data/cache/.gitkeep
+data/input/**
+!data/input/.gitkeep
+data/output/**
+!data/output/.gitkeep
+models/**
+!models/.gitkeep

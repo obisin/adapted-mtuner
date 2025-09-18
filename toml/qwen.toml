@@ -1,0 +1,134 @@
+# =============================================================================
+# MUSUBI TUNER - QWEN IMAGE LORA TRAINING
+# Usage: python train.py qwen_image.toml
+# =============================================================================
+
+[runner]
+framework = "qwen_image"        # Custom framework for Qwen
+skip_cache = true              # Set true if caches already exist
+use_uv = true                   # Use uv package manager
+cuda_extra = "cu124"            # cu124 | cu128
+
+# =============================================================================
+# PATHS (Qwen-specific script paths)
+# =============================================================================
+[paths]
+# Override default paths for Qwen-specific scripts
+#qwen_image_cache_latents_script = "src/musubi_tuner/qwen_image_cache_latents.py"
+#qwen_image_cache_text_encoder_outputs_script = "src/musubi_tuner/qwen_image_cache_text_encoder_outputs.py"
+#qwen_image_train_network_script = "src/musubi_tuner/qwen_image_train_network.py"
+
+# =============================================================================
+# ACCELERATE CONFIGURATION
+# =============================================================================
+[accelerate]
+num_cpu_threads_per_process = 1
+num_processes = 1              # Force single GPU
+mixed_precision = "bf16"       # bf16 recommended for Qwen
+
+# =============================================================================
+# QWEN IMAGE LORA TRAINING CONFIGURATION
+# =============================================================================
+[train]
+# Core model paths - Update these to your Qwen model locations
+dit = "G:\\ComfyUI\\models\\diffusion_models\\qwen_image_bf16.safetensors"
+text_encoder = "G:\\ComfyUI\\models\\text_encoders\\official_qwen_image_text_encoder.safetensors"
+vae = "G:\\ComfyUI\\models\\vae\\qwen_official_vae.safetensors"
+dataset_config = "toml/qwen_dataset.toml"
+
+# Attention and precision (Essential for Qwen)
+sdpa = true                     # Use PyTorch scaled dot product attention
+split_attn = true               # Process attention in chunks for VRAM savings
+mixed_precision = "bf16"        # bf16 recommended for Qwen
+fp8_base = true                 # Essential for 12GB+ cards
+fp8_scaled = true               # Additional FP8 optimization
+fp8_vl = true                   # FP8 for vision-language model
+gradient_checkpointing = true
+gradient_accumulation_steps = 2
+xformers = true
+
+# Optimizer settings
+optimizer_type = "adamw8bit"    # 8-bit optimizer for memory efficiency adamw8bit
+learning_rate = 8e-5            # Conservative learning rate for Qwen
+max_grad_norm = 1.0
+lr_scheduler = "cosine"
+lr_scheduler_power = 1.0
+lr_warmup_steps = 10
+
+# Network configuration (Qwen-specific)
+network_module = "networks.lora_qwen_image"  # REQUIRED for Qwen
+network_dim = 16                # LoRA rank
+network_alpha = 16              # LoRA alpha
+network_dropout = 0.05
+
+# Training schedule and timesteps (Qwen-specific)
+timestep_sampling = "qwen_shift"    # REQUIRED for Qwen
+weighting_scheme = "none"           # Qwen-specific weighting
+discrete_flow_shift = 2.2           # Dynamic shift for Qwen
+
+# Memory optimization (Important for lower VRAM)
+blocks_to_swap = 50            # Swap 45 out of 60 blocks to CPU
+auto_blocks_to_swap = false     # Set true to auto-calculate
+
+# Data loading
+max_data_loader_n_workers = 1
+persistent_data_loader_workers = true
+
+# Training duration
+max_train_epochs = 4
+save_every_n_epochs = 1
+save_every_n_steps = 15
+save_state = true
+save_last_n_epochs_state = 3
+
+# Output settings
+output_dir = "data/output/obisin"
+output_name = "obisin_qwen_image_lora_v1"
+metadata_title = "OBISIN Qwen Image LoRA v1"
+metadata_author = "obisin"
+
+# Debugging and monitoring
+seed = 1911
+# show_timesteps = "console"    # Uncomment to see timestep distribution
+
+# Resume training (uncomment if resuming)
+resume = "G:\\PythonProjects\\musubi-tuner\\data\\output\\obisin\\obisin_qwen_image_lora_v1-step00000010-state"
+
+# =============================================================================
+# CACHE LATENTS CONFIGURATION
+# =============================================================================
+[cache_latents]
+dataset_config = "toml/qwen_dataset.toml"
+vae = "G:\\ComfyUI\\models\\vae\\qwen_official_vae.safetensors"
+batch_size = 2                 # Adjust based on VRAM
+#device = "cuda:1"
+device = "cpu"                # Use GPU for caching
+skip_existing = true
+
+# =============================================================================
+# CACHE TEXT ENCODER CONFIGURATION
+# =============================================================================
+[cache_text_encoder]
+dataset_config = "toml/qwen_dataset.toml"
+text_encoder = "G:\\ComfyUI\\models\\text_encoders\\official_qwen_image_text_encoder.safetensors"
+batch_size = 1                 # Adjust based on VRAM
+device = "cpu"                # Can use "cpu" if VRAM limited
+#fp8_vl = true                # Uncomment if using FP8 for caching
+skip_existing = true
+
+# =============================================================================
+# DATASET DEFINITION
+# =============================================================================
+#[dataset]
+## Global settings
+#caption_extension = ".txt"
+#batch_size = 1                 # Keep at 1 for Qwen training
+#enable_bucket = true
+#bucket_no_upscale = false
+#
+#[[dataset.datasets]]
+#resolution = [1024, 1024]      # Qwen works well with square images
+#image_directory = "data/input/your_images"
+#cache_directory = "data/cache/your_images"
+#num_repeats = 20               # Adjust based on dataset size
+#caption_extension = ".txt"

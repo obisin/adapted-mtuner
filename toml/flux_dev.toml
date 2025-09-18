@@ -1,0 +1,140 @@
+# =============================================================================
+# MUSUBI TUNER - FLUX DEV LORA TRAINING
+# Usage: python train.py flux_dev.toml
+# =============================================================================
+
+[runner]
+framework = "flux_dev"          # FLUX dev framework
+skip_cache = false              # Set true if caches already exist
+use_uv = true                  # Use uv package manager
+cuda_extra = "cu124"           # cu124 | cu128
+
+# =============================================================================
+# PATHS (FLUX-specific script paths)
+# =============================================================================
+[paths]
+# Override default paths for FLUX-specific scripts
+#flux_kontext_cache_latents_script = "src/musubi_tuner/flux_kontext_cache_latents.py"
+#flux_kontext_cache_text_encoder_outputs_script = "src/musubi_tuner/flux_kontext_cache_text_encoder_outputs.py"
+#flux_kontext_train_network_script = "src/musubi_tuner/flux_kontext_train_network.py"
+
+# =============================================================================
+# ACCELERATE CONFIGURATION
+# =============================================================================
+[accelerate]
+num_cpu_threads_per_process = 1
+num_processes = 1              # Force single GPU
+mixed_precision = "bf16"       # bf16 to match FLUX model dtype
+
+# =============================================================================
+# FLUX DEV LORA TRAINING CONFIGURATION
+# =============================================================================
+[train]
+# Core model paths - Update these to your FLUX dev model locations
+dit = "G:\\ComfyUI\\models\\diffusion_models\\flux_dev.safetensors"
+text_encoder = "G:\\ComfyUI\\models\\text_encoders\\clip_l.safetensors"
+text_encoder2 = "G:\\ComfyUI\\models\\text_encoders\\t5xxl_fp8_e4m3fn_scaled.safetensors"
+vae = "G:\\ComfyUI\\models\\vae\\ae.safetensors"
+dataset_config = "G:\\PythonProjects\\musubi-tuner\\toml\\qwen_dataset.toml"
+
+# Attention and precision (Essential for FLUX)
+sdpa = true                     # Use PyTorch scaled dot product attention
+split_attn = true               # Process attention in chunks for VRAM savings
+mixed_precision = "bf16"        # bf16 to match FLUX model dtype
+fp8_base = true                 # Essential for 12GB+ cards
+fp8_scaled = true               # Additional FP8 optimization
+fp8_t5 = true                   # FP8 for T5 text encoder
+gradient_checkpointing = true
+gradient_accumulation_steps = 2
+xformers = true
+
+# Optimizer settings
+optimizer_type = "adamw8bit"    # 8-bit optimizer for memory efficiency
+learning_rate = 8e-5            # Conservative learning rate for FLUX
+max_grad_norm = 1.0
+lr_scheduler = "cosine"
+lr_scheduler_power = 1.0
+lr_warmup_steps = 10
+
+# Network configuration (FLUX-specific)
+network_module = "networks.lora_flux"  # REQUIRED for FLUX
+network_dim = 16                # LoRA rank
+network_alpha = 16              # LoRA alpha
+network_dropout = 0.05
+
+# Training schedule and timesteps (FLUX-specific)
+timestep_sampling = "flux_shift"    # REQUIRED for FLUX
+weighting_scheme = "none"           # FLUX-specific weighting
+discrete_flow_shift = 1.15          # Dynamic shift for FLUX
+
+# Input Perturbation Noise (optional regularization)
+ip_noise_gamma = 0.2               # Add noise to inputs for regularization (0.1-0.3)
+#ip_noise_gamma_random_strength = false  # Use random strength each step
+
+# Memory optimization (Important for lower VRAM)
+blocks_to_swap = 40            # Swap 50 out of 57 blocks to CPU
+auto_blocks_to_swap = false     # Set true to auto-calculate
+
+# Data loading
+max_data_loader_n_workers = 1
+persistent_data_loader_workers = true
+
+# Training duration
+max_train_epochs = 4
+save_every_n_epochs = 1
+save_every_n_steps = 50
+save_state = true
+save_last_n_epochs_state = 3
+
+# Output settings
+output_dir = "data/output/obisin_flux"
+output_name = "obisin_flux_dev_lora_v1"
+metadata_title = "OBISIN FLUX Dev LoRA v1"
+metadata_author = "obisin"
+
+# Debugging and monitoring
+seed = 1911
+# show_timesteps = "console"    # Uncomment to see timestep distribution
+
+# Resume training (uncomment if resuming)
+#resume = "G:\\PythonProjects\\musubi-tuner\\data\\output\\obisin_flux\\obisin_flux_dev_lora_v1-step00000028-state"
+
+# =============================================================================
+# CACHE LATENTS CONFIGURATION
+# =============================================================================
+[cache_latents]
+dataset_config = "G:\\PythonProjects\\musubi-tuner\\toml\\qwen_dataset.toml"
+vae = "G:\\ComfyUI\\models\\vae\\ae.safetensors"
+batch_size = 2                 # Adjust based on VRAM
+#device = "cuda:1"
+device = "cpu"                # Use GPU for caching
+skip_existing = true
+
+# =============================================================================
+# CACHE TEXT ENCODER CONFIGURATION
+# =============================================================================
+[cache_text_encoder]
+dataset_config = "G:\\PythonProjects\\musubi-tuner\\toml\\qwen_dataset.toml"
+text_encoder = "G:\\ComfyUI\\models\\text_encoders\\clip_l.safetensors"
+text_encoder2 = "G:\\ComfyUI\\models\\text_encoders\\t5xxl_fp8_e4m3fn_scaled.safetensors"
+batch_size = 1                 # Adjust based on VRAM
+device = "cpu"                # Can use "cpu" if VRAM limited
+#fp8_t5 = true                # Uncomment if using FP8 for caching
+skip_existing = true
+
+# =============================================================================
+# DATASET DEFINITION
+# =============================================================================
+#[dataset]
+## Global settings
+#caption_extension = ".txt"
+#batch_size = 1                 # Keep at 1 for FLUX training
+#enable_bucket = true
+#bucket_no_upscale = false
+#
+#[[dataset.datasets]]
+#resolution = [1024, 1024]      # FLUX works well with square images
+#image_directory = "data/input/your_images"
+#cache_directory = "data/cache/your_images"
+#num_repeats = 20               # Adjust based on dataset size
+#caption_extension = ".txt"
